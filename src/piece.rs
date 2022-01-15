@@ -17,11 +17,11 @@ pub struct Piece {
 }
 
 impl Piece {
-    pub fn new(piece_type: Type, colour: Colour) -> Self {
+    pub const fn new(piece_type: Type, colour: Colour) -> Self {
         Self { piece_type, colour }
     }
 
-    pub fn symbol(&self) -> char {
+    pub const fn symbol(self) -> char {
         // white pieces are capitalised, black are lowercase
         let byte_offset = match self.colour {
             Colour::Black => b'a' - b'A',
@@ -48,21 +48,15 @@ impl Piece {
             Colour::Black 
         };
         let piece_type = match symbol {
-            'P' => Type::Pawn,
-            'N' => Type::Knight,
-            'B' => Type::Bishop,
-            'R' => Type::Rook,
-            'Q' => Type::Queen,
-            'K' => Type::King,
-            'p' => Type::Pawn,
-            'n' => Type::Knight,
-            'b' => Type::Bishop,
-            'r' => Type::Rook,
-            'q' => Type::Queen,
-            'k' => Type::King,
+            'P' | 'p' => Type::Pawn,
+            'N' | 'n' => Type::Knight,
+            'B' | 'b' => Type::Bishop,
+            'R' | 'r' => Type::Rook,
+            'Q' | 'q' => Type::Queen,
+            'K' | 'k' => Type::King,
             _ => unreachable!(),
         };
-        Ok(Piece {
+        Ok(Self {
             piece_type,
             colour,
         })

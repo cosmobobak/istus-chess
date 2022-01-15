@@ -72,7 +72,7 @@ fn generate_pseudo_legal_ep(buffer: &mut Vec<Move>, state: &Bitboard, turn: Colo
     todo!();
 }
 
-pub(crate) fn generate_pseudo_legal_moves(buffer: &mut Vec<Move>, state: &Bitboard, turn: Colour, from_mask: u64, to_mask: u64) {
+pub fn generate_pseudo_legal_moves(buffer: &mut Vec<Move>, state: &Bitboard, turn: Colour, from_mask: u64, to_mask: u64) {
     // This function fills a vector with all pseudo legal moves.
     // IDEAS FOR OPTIMISATION:
     // - special case the get_piece_at function, as we never capture kings, and always capture Something
