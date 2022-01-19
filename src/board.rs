@@ -4,7 +4,7 @@ use std::fmt::{Debug, Display, Error, Formatter};
 use crate::squares::SquareTrait;
 use regex::Regex;
 
-use crate::bitboards::{BB_A1, BB_A8, BB_C1, BB_C8, BB_D1, BB_D8, BB_E1, BB_E8, BB_F1, BB_F8, BB_G1, BB_G8, BB_H1, BB_H8, BB_RANK_1, BB_RANK_2, BB_RANK_4, BB_RANK_5, BB_RANK_7, BB_RANK_8, BB_ALL};
+use crate::magicnumbers::{BB_A1, BB_A8, BB_C1, BB_C8, BB_D1, BB_D8, BB_E1, BB_E8, BB_F1, BB_F8, BB_G1, BB_G8, BB_H1, BB_H8, BB_RANK_1, BB_RANK_2, BB_RANK_4, BB_RANK_5, BB_RANK_7, BB_RANK_8, BB_ALL};
 
 use crate::bitmethods::{Bithackable, into_bb};
 use crate::bitboards::Bitboard;

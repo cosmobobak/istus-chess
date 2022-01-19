@@ -1,6 +1,4 @@
-use crate::bitboards::{BB_FILE_A, BB_FILE_H, BB_FILE_G, BB_FILE_B};
-
-
+use crate::magicnumbers::{BB_FILE_A, BB_FILE_H, BB_FILE_G, BB_FILE_B};
 
 pub trait Bithackable {
     fn test(self, n: usize) -> bool;

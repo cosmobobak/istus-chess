@@ -1,12 +1,13 @@
 use crate::{
-    bitboards::{
-        Bitboard, BB_ALL, BB_FILE_C, BB_FILE_D, BB_FILE_E, BB_FILE_F, BB_FILE_G, BB_RANKS,
-        BB_RANK_1, BB_RANK_3, BB_RANK_4, BB_RANK_5, BB_RANK_6, BB_RANK_8, BB_EMPTY,
-    },
+    bitboards::Bitboard,
     bitmethods::Bithackable,
     cmove::Move,
     colour::{BLACK, WHITE},
-    magicnumbers::{BB_DIAG_MASKS, BB_FILE_MASKS, BB_RANK_MASKS},
+    magicnumbers::{
+        BB_ALL, BB_DIAG_MASKS, BB_EMPTY, BB_FILE_C, BB_FILE_D, BB_FILE_E, BB_FILE_F, BB_FILE_G,
+        BB_FILE_MASKS, BB_RANKS, BB_RANK_1, BB_RANK_3, BB_RANK_4, BB_RANK_5, BB_RANK_6, BB_RANK_8,
+        BB_RANK_MASKS,
+    },
     piece::Type,
     squares::{Square, SquareTrait},
 };
@@ -343,12 +344,6 @@ fn attacks_mask(state: &Bitboard, square: Square) -> u64 {
             attacks |= BB_DIAG_ATTACKS[square][&(BB_DIAG_MASKS[square] & state.occupied())];
         }
         if (bb_square & state.rooks).any_set() || (bb_square & state.queens).any_set() {
-            println!("square: {:?}", square);
-            println!("lookup value 1: {}", BB_RANK_MASKS[square] & state.occupied());
-            println!("lookup value 2: {}", BB_FILE_MASKS[square] & state.occupied());
-            println!("occupied: {:b}", state.occupied());
-            println!("rmask: {:b} ({0})", BB_RANK_MASKS[square]);
-            println!("fmask: {:b} ({0})", BB_FILE_MASKS[square]);
             attacks |= BB_RANK_ATTACKS[square][&(BB_RANK_MASKS[square] & state.occupied())]
                 | BB_FILE_ATTACKS[square][&(BB_FILE_MASKS[square] & state.occupied())];
         }
@@ -358,11 +353,12 @@ fn attacks_mask(state: &Bitboard, square: Square) -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use crate::bitboards::{Bitboard, BB_FILE_A, BB_FILE_B, BB_FILE_C, BB_FILE_D};
+    use crate::bitboards::Bitboard;
+    use crate::board::Board;
     use crate::colour::WHITE;
+    use crate::magicnumbers::{BB_FILE_A, BB_FILE_B, BB_FILE_C, BB_FILE_D};
     use crate::movebuffer::MoveBuf;
     use crate::movegen::generate_pseudo_legal_moves;
-    use crate::board::Board;
 
     #[test]
     fn starting_position_count() {
@@ -381,7 +377,7 @@ mod tests {
         generate_pseudo_legal_moves(&mut buffer, &state, turn, from_mask, to_mask);
         assert_eq!(buffer.len(), 10);
     }
-    
+
     fn perft(board: &mut Board, depth: u8) -> u64 {
         if depth == 0 {
             return 1;
@@ -408,5 +404,14 @@ mod tests {
         let mut board = Board::new();
         let count = perft(&mut board, 2);
         assert_eq!(count, 400);
+    }
+
+    #[test]
+    fn perft_4() {
+        let mut board = Board::new();
+        let before_copy = board.clone();
+        let count = perft(&mut board, 4);
+        assert_eq!(count, 197_281);
+        assert_eq!(board, before_copy);
     }
 }
