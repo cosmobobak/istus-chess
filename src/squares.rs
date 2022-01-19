@@ -1,7 +1,10 @@
+#![allow(clippy::cast_possible_wrap)]
+
+pub type Square = usize;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(usize)]
-pub enum Square {
+pub enum SquareEnum {
   A1, B1, C1, D1, E1, F1, G1, H1,
   A2, B2, C2, D2, E2, F2, G2, H2,
   A3, B3, C3, D3, E3, F3, G3, H3,
@@ -12,58 +15,51 @@ pub enum Square {
   A8, B8, C8, D8, E8, F8, G8, H8
 }
 
+pub type Rank = usize;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(usize)]
-pub enum Rank {
+pub enum RankEnum {
     R1, R2, R3, R4, R5, R6, R7, R8
 }
 
+pub type File = usize;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(usize)]
-pub enum File {
+pub enum FileEnum {
     A, B, C, D, E, F, G, H
 }
 
-impl From<usize> for Square {
-    fn from(sq: usize) -> Self {
-        unsafe { std::mem::transmute(sq) }
-    }
+pub trait SquareTrait {
+    fn rank(self) -> Rank;
+    fn file(self) -> File;
+    fn from_rank_file(rank: Rank, file: File) -> Square;
+    fn flip_180(self) -> Square;
+    fn square_distance(a: Square, b: Square) -> usize;
 }
 
-impl From<usize> for Rank {
-    fn from(sq: usize) -> Self {
-        unsafe { std::mem::transmute(sq) }
-    }
-}
-
-impl From<usize> for File {
-    fn from(sq: usize) -> Self {
-        unsafe { std::mem::transmute(sq) }
-    }
-}
-
-impl Square {
-    pub fn from_rank_file(rank: Rank, file: File) -> Self {
-        (rank as usize * 8 + file as usize).into()
+impl SquareTrait for Square {
+    fn from_rank_file(rank: Rank, file: File) -> Self {
+        rank * 8 + file
     }
 
-    pub fn from_index(index: usize) -> Self {
-        index.into()
+    fn square_distance(a: Square, b: Square) -> usize {
+        std::cmp::max(
+            (a.rank() as isize - b.rank() as isize).abs() as Self,
+            (a.file() as isize - b.file() as isize).abs() as Self
+        )
     }
 
-    pub fn from_index_180(index: usize) -> Self {
-        (index ^ 0x38).into()
+    fn flip_180(self) -> Self {
+        self ^ 0x38
     }
 
-    pub fn flip_180(self) -> Self {
-        Self::from_index_180(self as usize)
+    fn rank(self) -> Rank {
+        self >> 3
     }
 
-    pub fn rank(self) -> Rank {
-        (self as usize >> 3).into()
-    }
-
-    pub fn file(self) -> File {
-        (self as usize & 7).into()
+    fn file(self) -> File {
+        self & 7
     }
 }

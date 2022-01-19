@@ -1,6 +1,6 @@
-use std::fmt::{Display, Error, Formatter};
+use std::{fmt::{Display, Error, Formatter}, cmp::Ordering};
 
-use crate::{squares::Square, piece::Type};
+use crate::{squares::{Square, SquareEnum}, piece::Type};
 
 const VALID_UCI_CHARS: [u8; 8] = [b'a', b'b', b'c', b'd', b'e', b'f', b'g', b'h'];
 const VALID_UCI_NUMS: [u8; 8] = [b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8'];
@@ -42,7 +42,7 @@ impl Move {
     }
 
     pub const fn null() -> Self {
-        Self { from: Square::A1, to: Square::A1, capture: None, promotion: None }
+        Self { from: SquareEnum::A1 as Square, to: SquareEnum::A1 as Square, capture: None, promotion: None }
     }
 
     pub const fn from_sq(&self) -> Square {
@@ -120,7 +120,7 @@ impl Move {
         } else {
             None
         };
-        Ok(Self::new(from.into(), to.into(), None, promotion))
+        Ok(Self::new(from, to, None, promotion))
     }
 }
 
@@ -146,5 +146,65 @@ impl Display for Move {
 impl std::fmt::Debug for Move {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         write!(f, "{:?} -> {:?}, capture: {:?}, promo: {:?}", self.from_sq(), self.to_sq(), self.capture, self.promotion)
+    }
+}
+
+impl PartialOrd for Move {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Move {
+    fn cmp(&self, other: &Self) -> Ordering {
+        // promotions first, then captures, then all else
+        if self.promotion.is_some() && other.promotion.is_none() {
+            return Ordering::Less;
+        }
+        if self.capture.is_some() && other.capture.is_none() {
+            return Ordering::Less;
+        }
+        self.from_sq().cmp(&other.from_sq())
+    }
+}
+
+#[cfg(test)]
+mod move_tests {
+    use crate::cmove::Move;
+    use crate::piece::Type;
+    use crate::squares::SquareEnum;
+    use SquareEnum::{A7, A8, E2, E4};
+
+    #[test]
+    fn uci() {
+        let m = Move::from_uci("e2e4").unwrap();
+        let from = m.from_sq();
+        let to = m.to_sq();
+        assert_eq!(from, E2 as usize);
+        assert_eq!(to, E4 as usize);
+    }
+
+    #[test]
+    fn uci_promo() {
+        let m = Move::from_uci("a7a8q").unwrap();
+        let from = m.from_sq();
+        let to = m.to_sq();
+        assert_eq!(from, A7 as usize);
+        assert_eq!(to, A8 as usize);
+        assert_eq!(m.promotion(), Some(Type::Queen));
+    }
+
+    #[test]
+    fn uci_invalid() {
+        let m = Move::from_uci("e2e4e5");
+        assert!(m.is_err());
+        let m = Move::from_uci("e2e9");
+        assert!(m.is_err());
+        let m = Move::from_uci("2e4e");
+        assert!(m.is_err());
+        let m = Move::from_uci("e2e4q");
+        assert!(m.is_err());
+        let m = Move::from_uci("j2e4");
+        assert!(m.is_err());
     }
 }
