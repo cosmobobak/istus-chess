@@ -1,5 +1,5 @@
 use crate::{piece::Type, bitmethods::Bithackable};
-use crate::magicnumbers::*;
+use crate::magicnumbers::{BB_B1, BB_B8, BB_C1, BB_C8, BB_CORNERS, BB_D1, BB_D8, BB_E1, BB_E8, BB_EMPTY, BB_F1, BB_F8, BB_G1, BB_G8, BB_RANK_1, BB_RANK_2, BB_RANK_7, BB_RANK_8};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Bitboard {

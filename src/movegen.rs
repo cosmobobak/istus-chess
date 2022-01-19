@@ -9,7 +9,7 @@ use crate::{
         BB_RANK_MASKS,
     },
     piece::Type,
-    squares::{Square, SquareTrait},
+    squares::{Square, SquareTrait}, board::Board,
 };
 
 use crate::magicnumbers::{
@@ -29,27 +29,10 @@ fn between(a: usize, b: usize) -> u64 {
     bb & (bb - 1)
 }
 
-// fn slider_blockers(state: &Bitboard, origin: usize, turn: Colour) -> u64 {
-//     let occupied = state.occupied_co[0] | state.occupied_co[1];
-//     let rooks_and_queens = state.rooks | state.queens;
-//     let bishops_and_queens = state.bishops | state.queens;
-
-//     let snipers = (BB_RANK_ATTACKS[origin] & rooks_and_queens)
-//         | (BB_FILE_ATTACKS[origin] & rooks_and_queens)
-//         | (BB_DIAG_ATTACKS[origin] & bishops_and_queens);
-
-//     let mut blockers = 0;
-
-//     for sniper in snipers.iter_bits() {
-//         let b = between(origin, sniper) & occupied;
-//         // Add to blockers if exactly one piece in-between.
-//         if b.any_set() && into_bb(b.msb()) == b {
-//             blockers |= b;
-//         }
-//     }
-
-//     blockers & state.occupied_co[turn as usize]
-// }
+fn legal(state: &Board, pl_move: Move) -> bool {
+    // https://github.com/official-stockfish/Stockfish/blob/master/src/position.cpp
+    todo!();
+}
 
 fn attackers_mask(state: &Bitboard, turn_idx: usize, square: usize, occupied: u64) -> u64 {
     let rank_pieces = BB_RANK_MASKS[square] & occupied;
