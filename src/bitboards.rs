@@ -74,6 +74,17 @@ pub const BB_RANK_6: u64 = BB_A6 | BB_B6 | BB_C6 | BB_D6 | BB_E6 | BB_F6 | BB_G6
 pub const BB_RANK_7: u64 = BB_A7 | BB_B7 | BB_C7 | BB_D7 | BB_E7 | BB_F7 | BB_G7 | BB_H7;
 pub const BB_RANK_8: u64 = BB_A8 | BB_B8 | BB_C8 | BB_D8 | BB_E8 | BB_F8 | BB_G8 | BB_H8;
 
+pub const BB_RANKS: [u64; 8] = [
+    BB_RANK_1,
+    BB_RANK_2,
+    BB_RANK_3,
+    BB_RANK_4,
+    BB_RANK_5,
+    BB_RANK_6,
+    BB_RANK_7,
+    BB_RANK_8,
+];
+
 pub const BB_FILE_A: u64 = BB_A1 | BB_A2 | BB_A3 | BB_A4 | BB_A5 | BB_A6 | BB_A7 | BB_A8;
 pub const BB_FILE_B: u64 = BB_B1 | BB_B2 | BB_B3 | BB_B4 | BB_B5 | BB_B6 | BB_B7 | BB_B8;
 pub const BB_FILE_C: u64 = BB_C1 | BB_C2 | BB_C3 | BB_C4 | BB_C5 | BB_C6 | BB_C7 | BB_C8;
@@ -83,12 +94,23 @@ pub const BB_FILE_F: u64 = BB_F1 | BB_F2 | BB_F3 | BB_F4 | BB_F5 | BB_F6 | BB_F7
 pub const BB_FILE_G: u64 = BB_G1 | BB_G2 | BB_G3 | BB_G4 | BB_G5 | BB_G6 | BB_G7 | BB_G8;
 pub const BB_FILE_H: u64 = BB_H1 | BB_H2 | BB_H3 | BB_H4 | BB_H5 | BB_H6 | BB_H7 | BB_H8;
 
+pub const BB_FILES: [u64; 8] = [
+    BB_FILE_A,
+    BB_FILE_B,
+    BB_FILE_C,
+    BB_FILE_D,
+    BB_FILE_E,
+    BB_FILE_F,
+    BB_FILE_G,
+    BB_FILE_H,
+];
+
 pub const BB_BACKRANKS: u64 = BB_RANK_1 | BB_RANK_8;
 
 pub const BB_CORNERS: u64 = BB_A1 | BB_H1 | BB_A8 | BB_H8;
 pub const BB_CENTER: u64 = BB_D4 | BB_E4 | BB_D5 | BB_E5;
 
-pub const BB_NONE: u64 = 0;
+pub const BB_EMPTY: u64 = 0;
 pub const BB_ALL: u64 = 0xffff_ffff_ffff_ffff;
 pub const BB_LIGHT_SQUARES: u64 = 0x55aa_55aa_55aa_55aa;
 pub const BB_DARK_SQUARES: u64 = 0xaa55_aa55_aa55_aa55;
@@ -115,7 +137,7 @@ impl Bitboard {
         self.queens = BB_D1 | BB_D8;
         self.kings = BB_E1 | BB_E8;
         self.castling_rights = BB_CORNERS;
-        self.ep_square = BB_NONE;
+        self.ep_square = BB_EMPTY;
         self.occupied_co[0] = BB_RANK_1 | BB_RANK_2;
         self.occupied_co[1] = BB_RANK_7 | BB_RANK_8;
     }
@@ -129,22 +151,22 @@ impl Bitboard {
             queens: BB_D1 | BB_D8,
             kings: BB_E1 | BB_E8,
             castling_rights: BB_CORNERS,
-            ep_square: BB_NONE,
+            ep_square: BB_EMPTY,
             occupied_co: [BB_RANK_1 | BB_RANK_2, BB_RANK_7 | BB_RANK_8],
         }
     }
 
     pub const fn clear() -> Self {
         Self {
-            pawns: BB_NONE,
-            knights: BB_NONE,
-            bishops: BB_NONE,
-            rooks: BB_NONE,
-            queens: BB_NONE,
-            kings: BB_NONE,
-            castling_rights: BB_NONE,
-            ep_square: BB_NONE,
-            occupied_co: [BB_NONE, BB_NONE],
+            pawns: BB_EMPTY,
+            knights: BB_EMPTY,
+            bishops: BB_EMPTY,
+            rooks: BB_EMPTY,
+            queens: BB_EMPTY,
+            kings: BB_EMPTY,
+            castling_rights: BB_EMPTY,
+            ep_square: BB_EMPTY,
+            occupied_co: [BB_EMPTY, BB_EMPTY],
         }
     }
 
@@ -165,5 +187,10 @@ impl Bitboard {
         } else {
             Some(Type::King)
         }
+    }
+
+    #[inline]
+    pub const fn occupied(&self) -> u64 {
+        self.occupied_co[0] | self.occupied_co[1]
     }
 }
