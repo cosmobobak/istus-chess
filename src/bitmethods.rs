@@ -4,7 +4,8 @@ use crate::bitboards::{BB_FILE_A, BB_FILE_H, BB_FILE_G, BB_FILE_B};
 
 pub trait Bithackable {
     fn test(self, n: usize) -> bool;
-    fn has_any_set(self) -> bool;
+    fn any_set(self) -> bool;
+    fn none_set(self) -> bool;
     fn lsb(self) -> usize;
     fn msb(self) -> usize;
     fn popcount(self) -> usize;
@@ -40,8 +41,12 @@ impl Bithackable for u64 {
         (self & (1 << n)) != 0
     }
 
-    fn has_any_set(self) -> bool {
+    fn any_set(self) -> bool {
         self != 0
+    }
+
+    fn none_set(self) -> bool {
+        self == 0
     }
 
     fn set(&mut self, n: usize) {
@@ -218,5 +223,17 @@ impl Iterator for IterBits {
     fn size_hint(&self) -> (usize, Option<usize>) {
         let count = self.bitboard.popcount();
         (count, Some(count))
+    }
+}
+
+#[cfg(test)]
+mod bitmethods_tests {
+    use crate::bitmethods::Bithackable;
+
+    #[test]
+    fn to_vec() {
+        let bb = 0b0110_0110_0110_0110_u64;
+        let vec = bb.to_vec();
+        assert_eq!(vec, vec![1, 2, 5, 6, 9, 10, 13, 14]);
     }
 }
