@@ -12,7 +12,7 @@ use crate::cmove::{Move, MoveUndoInfo};
 use crate::colour::Colour;
 use crate::movebuffer::MoveBuf;
 use crate::movegen::generate_pseudo_legal_moves;
-use crate::piece::{Piece, Type};
+use crate::piece::{Piece, PieceType};
 use crate::squares::Square;
 
 const STARTING_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -80,20 +80,23 @@ impl Board {
     }
 
     pub fn make(&mut self, m: Move) {
-        use Type::{King, Pawn, Rook};
+        use PieceType::{King, Pawn, Rook};
+
+        let to = m.to_sq();
+        let captured = self.bitboard.piece_type_at(to as usize);
 
         let undo_info = MoveUndoInfo::new(
             self.bitboard.ep_square, 
             self.bitboard.castling_rights,
-            self.halfmove_clock);
+            self.halfmove_clock,
+            captured
+        );
 
         let from = m.from_sq();
-        let to = m.to_sq();
         let from_bb = into_bb(from as usize);
         let to_bb = into_bb(to as usize);
         let from_to_bb = from_bb | to_bb;
-        let piece = self.bitboard.piece_type_at(from as usize).unwrap();
-        let captured = self.bitboard.piece_type_at(to as usize);
+        let piece = self.bitboard.piece_type_at(from as usize);
 
         // clear the from_square and set the to_square in the colour bb
         self.bitboard.occupied_co[self.turn_as_idx()] ^= from_to_bb;
@@ -102,7 +105,7 @@ impl Board {
         let bb = self.get_bb_mut(piece);
         *bb ^= from_to_bb;
 
-        if let Some(captured) = captured {
+        if captured != PieceType::None {
             // clear the captured piece in the colour bb
             self.bitboard.occupied_co[1 - self.turn_as_idx()] ^= to_bb;
             let bb = self.get_bb_mut(captured);
@@ -175,12 +178,13 @@ impl Board {
         }
 
         // promotions
-        if let Some(promotion_piece_type) = m.promotion() {
+        let promotion_piece_type = m.promotion();
+        if promotion_piece_type != PieceType::None {
             let promo_bb = match promotion_piece_type {
-                Type::Knight => &mut self.bitboard.knights,
-                Type::Bishop => &mut self.bitboard.bishops,
-                Type::Rook => &mut self.bitboard.rooks,
-                Type::Queen => &mut self.bitboard.queens,
+                PieceType::Knight => &mut self.bitboard.knights,
+                PieceType::Bishop => &mut self.bitboard.bishops,
+                PieceType::Rook => &mut self.bitboard.rooks,
+                PieceType::Queen => &mut self.bitboard.queens,
                 _ => unreachable!(),
             };
             *promo_bb |= to_bb;
@@ -212,12 +216,13 @@ impl Board {
     }
 
     fn unmake_unchecked(&mut self, last_move: Move, info: MoveUndoInfo) {
-        use Type::{Bishop, King, Knight, Pawn, Queen, Rook};
+        use PieceType::{Bishop, King, Knight, Pawn, Queen, Rook};
 
         let MoveUndoInfo {
             ep_square: old_ep_square,
             castling_rights: old_castling_rights,
             halfmove_clock: old_halfmove_clock,
+            captured_piece: captured
         } = info;
 
         let from = last_move.from_sq();
@@ -225,11 +230,11 @@ impl Board {
         let from_bb = into_bb(from as usize);
         let to_bb = into_bb(to as usize);
         let from_to_bb = from_bb | to_bb;
-        let piece = self.bitboard.piece_type_at(to as usize).unwrap();
-        let captured = last_move.capture();
+        let piece = self.bitboard.piece_type_at(to as usize);
 
         // promotions
-        if let Some(promotion_piece_type) = last_move.promotion() {
+        let promotion_piece_type = last_move.promotion();
+        if promotion_piece_type != PieceType::None {
             // determine the piece type to remove
             let promo_bb = match promotion_piece_type {
                 Knight => &mut self.bitboard.knights,
@@ -251,11 +256,11 @@ impl Board {
         // clear the to_square and set the from_square in the colour bb
         self.bitboard.occupied_co[1 - self.turn_as_idx()] ^= from_to_bb;
         // if the move was a capture, then we reset the captured piece
-        if let Some(captured_piece_type) = captured {
+        if captured != PieceType::None {
             // set the captured piece in the colour bb
             self.bitboard.occupied_co[self.turn_as_idx()] ^= to_bb;
             // set the captured piece in the piece bb
-            let bb = self.get_bb_mut(captured_piece_type);
+            let bb = self.get_bb_mut(captured);
             *bb ^= to_bb;
         }
 
@@ -302,14 +307,15 @@ impl Board {
         self.moves_played -= 1;
     }
 
-    fn get_bb_mut(&mut self, p: Type) -> &mut u64 {
+    fn get_bb_mut(&mut self, p: PieceType) -> &mut u64 {
         match p {
-            Type::Pawn => &mut self.bitboard.pawns,
-            Type::Knight => &mut self.bitboard.knights,
-            Type::Bishop => &mut self.bitboard.bishops,
-            Type::Rook => &mut self.bitboard.rooks,
-            Type::Queen => &mut self.bitboard.queens,
-            Type::King => &mut self.bitboard.kings,
+            PieceType::Pawn => &mut self.bitboard.pawns,
+            PieceType::Knight => &mut self.bitboard.knights,
+            PieceType::Bishop => &mut self.bitboard.bishops,
+            PieceType::Rook => &mut self.bitboard.rooks,
+            PieceType::Queen => &mut self.bitboard.queens,
+            PieceType::King => &mut self.bitboard.kings,
+            PieceType::None => panic!("tried to get a bitboard for an invalid piece."),
         }
     }
 
@@ -533,7 +539,10 @@ impl Board {
     pub fn get_piece_at(&self, square: Square) -> Option<Piece> {
         let square = square as usize;
 
-        let piece_type = self.bitboard.piece_type_at(square)?;
+        let piece_type = self.bitboard.piece_type_at(square);
+        if piece_type == PieceType::None {
+            return None;
+        }
         let colour = if self.bitboard.occupied_co[0].test(square) {
             Colour::White
         } else {
@@ -549,12 +558,13 @@ impl Board {
         self.bitboard.occupied_co[piece.colour as usize].set(square);
 
         let piece_bb = match piece.piece_type {
-            Type::Pawn => &mut self.bitboard.pawns,
-            Type::Knight => &mut self.bitboard.knights,
-            Type::Bishop => &mut self.bitboard.bishops,
-            Type::Rook => &mut self.bitboard.rooks,
-            Type::Queen => &mut self.bitboard.queens,
-            Type::King => &mut self.bitboard.kings,
+            PieceType::Pawn => &mut self.bitboard.pawns,
+            PieceType::Knight => &mut self.bitboard.knights,
+            PieceType::Bishop => &mut self.bitboard.bishops,
+            PieceType::Rook => &mut self.bitboard.rooks,
+            PieceType::Queen => &mut self.bitboard.queens,
+            PieceType::King => &mut self.bitboard.kings,
+            PieceType::None => panic!("unexpected piece type"),
         };
 
         piece_bb.set(square);
@@ -577,13 +587,13 @@ impl Board {
             let kingloc = (self.bitboard.kings & self.bitboard.occupied_co[side]).lsb();
             let from = kingloc;
             let to = from + 2;
-            return Ok(Move::new(from, to, None, None));
+            return Ok(Move::new_castling(from, to));
         } else if ["O-O-O", "O-O-O+", "O-O-O#", "0-0-0", "0-0-0+", "0-0-0#"].contains(&move_san) {
             // castling queenside.
             let kingloc = (self.bitboard.kings & self.bitboard.occupied_co[side]).lsb();
             let from = kingloc;
             let to = from - 2;
-            return Ok(Move::new(from, to, None, None));
+            return Ok(Move::new_castling(from, to));
         }
 
         if !SAN_REGEX.is_match(move_san) {
@@ -600,17 +610,9 @@ impl Board {
     }
 
     pub fn make_uci(&mut self, uci: &str) -> Result<(), &'static str> {
-        let partial_move = Move::from_uci(uci)?;
+        let m = Move::from_uci(uci)?;
 
-        let capture = self.get_piece_at(partial_move.to_sq()).map(|p| p.piece_type);
-        
-        let actual_move = Move::new(
-            partial_move.from_sq(),
-            partial_move.to_sq(),
-            capture,
-            partial_move.promotion(),
-        );
-        self.make(actual_move);
+        self.make(m);
 
         Ok(())
     }
@@ -703,7 +705,7 @@ mod board_ops {
 mod move_make {
     use crate::cmove::Move;
     use crate::colour::Colour;
-    use crate::piece::{Type, Piece};
+    use crate::piece::{PieceType, Piece};
     use crate::squares::SquareEnum;
     use SquareEnum::{E2, E4, F5, G7, G8};
     use crate::board::Board;
@@ -712,7 +714,7 @@ mod move_make {
     fn make_move() {
         let mut board = Board::new();
         board.make(Move::from_uci("e2e4").unwrap());
-        assert_eq!(board.get_piece_at(E4 as usize).unwrap().piece_type, Type::Pawn);
+        assert_eq!(board.get_piece_at(E4 as usize).unwrap().piece_type, PieceType::Pawn);
         assert_eq!(board.get_piece_at(E2 as usize), None);
     }
 
@@ -726,19 +728,19 @@ mod move_make {
         // after playing all of the moves, the board is in position for white to promote the pawn on g7.
         let mut board = refboard.clone();
         board.make(Move::from_uci("g7g8q").unwrap());
-        assert_eq!(board.get_piece_at(G8 as usize), Some(Piece::new(Type::Queen, Colour::White)));
+        assert_eq!(board.get_piece_at(G8 as usize), Some(Piece::new(PieceType::Queen, Colour::White)));
         assert_eq!(board.get_piece_at(G7 as usize), None);
         let mut board = refboard.clone();
         board.make(Move::from_uci("g7g8n").unwrap());
-        assert_eq!(board.get_piece_at(G8 as usize), Some(Piece::new(Type::Knight, Colour::White)));
+        assert_eq!(board.get_piece_at(G8 as usize), Some(Piece::new(PieceType::Knight, Colour::White)));
         assert_eq!(board.get_piece_at(G7 as usize), None);
         let mut board = refboard.clone();
         board.make(Move::from_uci("g7g8r").unwrap());
-        assert_eq!(board.get_piece_at(G8 as usize), Some(Piece::new(Type::Rook, Colour::White)));
+        assert_eq!(board.get_piece_at(G8 as usize), Some(Piece::new(PieceType::Rook, Colour::White)));
         assert_eq!(board.get_piece_at(G7 as usize), None);
         let mut board = refboard.clone();
         board.make(Move::from_uci("g7g8b").unwrap());
-        assert_eq!(board.get_piece_at(G8 as usize), Some(Piece::new(Type::Bishop, Colour::White)));
+        assert_eq!(board.get_piece_at(G8 as usize), Some(Piece::new(PieceType::Bishop, Colour::White)));
         assert_eq!(board.get_piece_at(G7 as usize), None);
     }
 
@@ -806,6 +808,6 @@ mod move_make {
         assert_eq!(board.get_piece_at(F5 as usize), None);
         board.unmake();
         println!("{}", board);
-        assert_eq!(board.get_piece_at(F5 as usize), Some(Piece::new(Type::Pawn, Colour::Black)));
+        assert_eq!(board.get_piece_at(F5 as usize), Some(Piece::new(PieceType::Pawn, Colour::Black)));
     }
 }

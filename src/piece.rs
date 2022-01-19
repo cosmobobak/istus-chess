@@ -1,23 +1,24 @@
 use crate::colour::Colour;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Type {
-    Pawn,
-    Knight,
-    Bishop,
-    Rook,
-    Queen,
-    King,
+pub enum PieceType {
+    None = 0,
+    Pawn = 1,
+    Knight = 2,
+    Bishop = 3,
+    Rook = 4,
+    Queen = 5,
+    King = 6,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Piece {
-    pub piece_type: Type,
+    pub piece_type: PieceType,
     pub colour: Colour,
 }
 
 impl Piece {
-    pub const fn new(piece_type: Type, colour: Colour) -> Self {
+    pub const fn new(piece_type: PieceType, colour: Colour) -> Self {
         Self { piece_type, colour }
     }
 
@@ -28,12 +29,13 @@ impl Piece {
             Colour::White => 0,
         };
         (match self.piece_type {
-            Type::Pawn => b'P' + byte_offset,
-            Type::Knight => b'N' + byte_offset,
-            Type::Bishop => b'B' + byte_offset,
-            Type::Rook => b'R' + byte_offset,
-            Type::Queen => b'Q' + byte_offset,
-            Type::King => b'K' + byte_offset,
+            PieceType::Pawn => b'P' + byte_offset,
+            PieceType::Knight => b'N' + byte_offset,
+            PieceType::Bishop => b'B' + byte_offset,
+            PieceType::Rook => b'R' + byte_offset,
+            PieceType::Queen => b'Q' + byte_offset,
+            PieceType::King => b'K' + byte_offset,
+            PieceType::None => b'?',
         }) as char
     }
 
@@ -48,12 +50,12 @@ impl Piece {
             Colour::Black 
         };
         let piece_type = match symbol {
-            'P' | 'p' => Type::Pawn,
-            'N' | 'n' => Type::Knight,
-            'B' | 'b' => Type::Bishop,
-            'R' | 'r' => Type::Rook,
-            'Q' | 'q' => Type::Queen,
-            'K' | 'k' => Type::King,
+            'P' | 'p' => PieceType::Pawn,
+            'N' | 'n' => PieceType::Knight,
+            'B' | 'b' => PieceType::Bishop,
+            'R' | 'r' => PieceType::Rook,
+            'Q' | 'q' => PieceType::Queen,
+            'K' | 'k' => PieceType::King,
             _ => unreachable!(),
         };
         Ok(Self {

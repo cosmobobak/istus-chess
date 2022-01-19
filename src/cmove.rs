@@ -1,17 +1,29 @@
-use std::{fmt::{Display, Error, Formatter}, cmp::Ordering};
+#![allow(clippy::cast_possible_truncation)]
 
-use crate::{squares::{Square, SquareEnum}, piece::Type};
+use std::fmt::{Display, Error, Formatter};
+
+use crate::{squares::Square, piece::PieceType};
 
 const VALID_UCI_CHARS: [u8; 8] = [b'a', b'b', b'c', b'd', b'e', b'f', b'g', b'h'];
 const VALID_UCI_NUMS: [u8; 8] = [b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8'];
 const VALID_UCI_PROMOTIONS: [u8; 4] = [b'q', b'r', b'b', b'n'];
 
+/// From Stockfish, moves can be packed into a u16 like so:
+/// bit  0- 5: destination square (from 0 to 63)
+/// bit  6-11: origin square (from 0 to 63)
+/// bit 12-13: promotion piece type - 2 (from KNIGHT-2 to QUEEN-2)
+/// bit 14-15: special move flag: promotion (1), en passant (2), castling (3)
+
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub struct Move {
-    from: Square,
-    to: Square,
-    capture: Option<Type>,
-    promotion: Option<Type>,
+pub struct Move(u16);
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[repr(u16)]
+pub enum MoveType {
+    Normal,
+    Promotion = 1 << 14,
+    EnPassant = 2 << 14,
+    Castling  = 3 << 14
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -19,63 +31,87 @@ pub struct MoveUndoInfo {
     pub ep_square: u64,
     pub castling_rights: u64,
     pub halfmove_clock: u8,
+    pub captured_piece: PieceType,
 }
 
 impl MoveUndoInfo {
-    pub const fn new(ep_square: u64, castling_rights: u64, halfmove_clock: u8) -> Self {
+    pub const fn new(ep_square: u64, castling_rights: u64, halfmove_clock: u8, captured_piece: PieceType) -> Self {
         Self {
             ep_square,
             castling_rights,
             halfmove_clock,
+            captured_piece
         }
     }
 }
 
 impl Move {
-    pub const fn new(from: Square, to: Square, capture: Option<Type>, promotion: Option<Type>) -> Self {
-        Self {
-            from,
-            to,
-            capture,
-            promotion,
-        }
+    pub const fn new(from: Square, to: Square) -> Self {
+        Self(((from as u16) << 6) | to as u16)
+    }
+
+    pub const fn new_promotion(from: Square, to: Square, pt: PieceType) -> Self {
+        Self(((from as u16) << 6) | to as u16 
+            | (((pt as u16) - PieceType::Knight as u16) << 12)
+            | MoveType::Promotion as u16)
+    }
+
+    pub const fn new_castling(from: Square, to: Square) -> Self {
+        Self(((from as u16) << 6) | to as u16 | MoveType::Castling as u16)
+    }
+
+    pub const fn new_ep(from: Square, to: Square) -> Self {
+        Self(((from as u16) << 6) | to as u16 | MoveType::EnPassant as u16)
     }
 
     pub const fn null() -> Self {
-        Self { from: SquareEnum::A1 as Square, to: SquareEnum::A1 as Square, capture: None, promotion: None }
-    }
-
-    pub const fn from_sq(&self) -> Square {
-        self.from
+        Self(0)
     }
 
     #[allow(clippy::wrong_self_convention)]
-    pub const fn to_sq(&self) -> Square {
-        self.to
+    pub const fn from_sq(self) -> Square {
+        ((self.0 >> 6) & 0x3F) as Square
     }
 
-    pub const fn capture(&self) -> Option<Type> {
-        self.capture
+    #[allow(clippy::wrong_self_convention)]
+    pub const fn to_sq(self) -> Square {
+        (self.0 & 0x3F) as Square
     }
 
-    pub const fn promotion(&self) -> Option<Type> {
-        self.promotion
+    pub const fn move_type(self) -> MoveType {
+        use MoveType::{Castling, EnPassant, Normal, Promotion};
+        match (self.0 & (3 << 14)) >> 14 {
+            0 => Normal,
+            1 => Promotion,
+            2 => EnPassant,
+            3 => Castling,
+            _ => unreachable!()
+        }
+    }
+
+    pub const fn promotion(self) -> PieceType {
+        use PieceType::{Knight, Queen, Rook, Bishop};
+        // ((self.0 >> 12) & 3) + PieceType::Knight as u16
+        let val = (self.0 >> 12) & 3;
+        match val {
+            0 => Knight,
+            1 => Bishop,
+            2 => Rook,
+            3 => Queen,
+            _ => unreachable!()
+        }
     }
 
     fn set_to(&mut self, to: Square) {
-        self.to = to;
+        self.0 = (self.0 & !0x3F) | (to as u16 & 0x3F);
     }
 
     fn set_from(&mut self, from: Square) {
-        self.from = from;
+        self.0 = (self.0 & !(0x3F << 6)) | ((from as u16 & 0x3F) << 6);
     }
 
-    pub const fn is_capture(&self) -> bool {
-        self.capture.is_some()
-    }
-
-    pub const fn is_promotion(&self) -> bool {
-        self.promotion.is_some()
+    pub const fn is_promotion(self) -> bool {
+        (self.0 & (3 << 14)) != MoveType::Promotion as u16
     }
 
     pub fn from_uci(uci: &str) -> Result<Self, &'static str> {
@@ -111,16 +147,16 @@ impl Move {
                 return Err("uci contains invalid promotion");
             }
             match uci[4] {
-                b'n' => Some(Type::Knight),
-                b'b' => Some(Type::Bishop),
-                b'r' => Some(Type::Rook),
-                b'q' => Some(Type::Queen),
+                b'n' => PieceType::Knight,
+                b'b' => PieceType::Bishop,
+                b'r' => PieceType::Rook,
+                b'q' => PieceType::Queen,
                 _ => unreachable!(),
             }
         } else {
-            None
+            PieceType::None
         };
-        Ok(Self::new(from, to, None, promotion))
+        Ok(Self::new_promotion(from, to, promotion))
     }
 }
 
@@ -132,46 +168,27 @@ impl Display for Move {
         let from_rank = RANKS[self.from_sq() as usize / 8] as char;
         let to_file = FILES[self.to_sq() as usize % 8] as char;
         let to_rank = RANKS[self.to_sq() as usize / 8] as char;
-        let promo = self.promotion.map_or("", |promo| match promo {
-            Type::Knight => "n",
-            Type::Bishop => "b",
-            Type::Rook => "r",
-            Type::Queen => "q",
+        let promo = match self.promotion() {
+            PieceType::Knight => 'n',
+            PieceType::Bishop => 'b',
+            PieceType::Rook => 'r',
+            PieceType::Queen => 'q',
             _ => panic!("invalid promotion"),
-        });
+        };
         write!(f, "{}{}{}{}{}", from_file, from_rank, to_file, to_rank, promo)
     }
 }
 
 impl std::fmt::Debug for Move {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
-        write!(f, "{:?} -> {:?}, capture: {:?}, promo: {:?}", self.from_sq(), self.to_sq(), self.capture, self.promotion)
-    }
-}
-
-impl PartialOrd for Move {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for Move {
-    fn cmp(&self, other: &Self) -> Ordering {
-        // promotions first, then captures, then all else
-        if self.promotion.is_some() && other.promotion.is_none() {
-            return Ordering::Less;
-        }
-        if self.capture.is_some() && other.capture.is_none() {
-            return Ordering::Less;
-        }
-        self.from_sq().cmp(&other.from_sq())
+        write!(f, "{:?} -> {:?}, type: {:?}, promo: {:?}", self.from_sq(), self.to_sq(), self.move_type(), self.promotion())
     }
 }
 
 #[cfg(test)]
 mod move_tests {
     use crate::cmove::Move;
-    use crate::piece::Type;
+    use crate::piece::PieceType;
     use crate::squares::SquareEnum;
     use SquareEnum::{A7, A8, E2, E4};
 
@@ -191,7 +208,7 @@ mod move_tests {
         let to = m.to_sq();
         assert_eq!(from, A7 as usize);
         assert_eq!(to, A8 as usize);
-        assert_eq!(m.promotion(), Some(Type::Queen));
+        assert_eq!(m.promotion(), PieceType::Queen);
     }
 
     #[test]

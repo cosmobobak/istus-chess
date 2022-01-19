@@ -1,14 +1,14 @@
 use crate::{
     bitboards::Bitboard,
     bitmethods::Bithackable,
-    cmove::Move,
+    cmove::{Move, MoveType},
     colour::{BLACK, WHITE},
     magicnumbers::{
         BB_ALL, BB_DIAG_MASKS, BB_EMPTY, BB_FILE_C, BB_FILE_D, BB_FILE_E, BB_FILE_F, BB_FILE_G,
         BB_FILE_MASKS, BB_RANKS, BB_RANK_1, BB_RANK_3, BB_RANK_4, BB_RANK_5, BB_RANK_6, BB_RANK_8,
         BB_RANK_MASKS,
     },
-    piece::Type,
+    piece::PieceType,
     squares::{Square, SquareTrait}, board::Board,
 };
 
@@ -106,7 +106,10 @@ fn generate_castling_moves(
                 state.occupied() ^ king_bb ^ rook_bb ^ rook_to,
             ))
         {
-            buffer.push(Move::new(king_sq, king_to.lsb(), None, None));
+            buffer.push(Move::new_castling(
+                king_sq, 
+                king_to.lsb()
+            ));
         }
     }
 }
@@ -130,7 +133,7 @@ fn generate_evasions(
     let bb = BB_KING_ATTACKS[king] & !state.occupied_co[turn_idx] & !attacked;
     for to_square in bb.iter_bits() {
         let capture = state.piece_type_at(to_square);
-        buffer.push(Move::new(king, to_square, capture, None));
+        buffer.push(Move::new(king, to_square));
     }
 
     let checker = checkers.lsb();
@@ -181,7 +184,7 @@ pub fn generate_pseudo_legal_moves(
         let moves = attacks_mask(state, from_square) & !our_pieces & to_mask;
         for to_square in moves.iter_bits() {
             let capture = state.piece_type_at(to_square);
-            buffer.push(Move::new(from_square, to_square, capture, None));
+            buffer.push(Move::new(from_square, to_square));
         }
     }
 
@@ -206,27 +209,31 @@ pub fn generate_pseudo_legal_moves(
             let to_square: Square = to_square;
             let capture = state.piece_type_at(to_square);
             if to_square.rank() == 0 || to_square.rank() == 7 {
-                buffer.push(Move::new(
+                buffer.push(Move::new_promotion(
                     from_square,
                     to_square,
-                    capture,
-                    Some(Type::Queen),
+                    PieceType::Queen
                 ));
-                buffer.push(Move::new(
+                buffer.push(Move::new_promotion(
                     from_square,
                     to_square,
-                    capture,
-                    Some(Type::Knight),
+                    PieceType::Knight
                 ));
-                buffer.push(Move::new(from_square, to_square, capture, Some(Type::Rook)));
-                buffer.push(Move::new(
+                buffer.push(Move::new_promotion(
+                    from_square, 
+                    to_square, 
+                    PieceType::Rook
+                ));
+                buffer.push(Move::new_promotion(
                     from_square,
                     to_square,
-                    capture,
-                    Some(Type::Bishop),
+                    PieceType::Bishop
                 ));
             } else {
-                buffer.push(Move::new(from_square, to_square, capture, None));
+                buffer.push(Move::new(
+                    from_square, 
+                    to_square
+                ));
             }
         }
     }
@@ -255,12 +262,12 @@ pub fn generate_pseudo_legal_moves(
         };
 
         if to_square.rank() == 0 || to_square.rank() == 7 {
-            buffer.push(Move::new(from_square, to_square, None, Some(Type::Queen)));
-            buffer.push(Move::new(from_square, to_square, None, Some(Type::Knight)));
-            buffer.push(Move::new(from_square, to_square, None, Some(Type::Rook)));
-            buffer.push(Move::new(from_square, to_square, None, Some(Type::Bishop)));
+            buffer.push(Move::new_promotion(from_square, to_square, PieceType::Knight));
+            buffer.push(Move::new_promotion(from_square, to_square, PieceType::Bishop));
+            buffer.push(Move::new_promotion(from_square, to_square, PieceType::Rook));
+            buffer.push(Move::new_promotion(from_square, to_square, PieceType::Queen));
         } else {
-            buffer.push(Move::new(from_square, to_square, None, None));
+            buffer.push(Move::new(from_square, to_square));
         }
     }
 
@@ -271,7 +278,7 @@ pub fn generate_pseudo_legal_moves(
         } else {
             to_square - 16
         };
-        buffer.push(Move::new(from_square, to_square, None, None));
+        buffer.push(Move::new(from_square, to_square));
     }
 
     // Generate en passant captures.
@@ -302,11 +309,9 @@ fn generate_pseudo_legal_ep(
         & BB_RANKS[if turn_idx == WHITE { 4 } else { 3 }];
 
     for capturer in capturers.iter_bits() {
-        buffer.push(Move::new(
+        buffer.push(Move::new_ep(
             capturer,
-            state.ep_square.lsb(),
-            Some(Type::Pawn),
-            None,
+            state.ep_square.lsb()
         ));
     }
 }
