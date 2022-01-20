@@ -4,9 +4,9 @@ use std::fmt::{Display, Error, Formatter};
 
 use crate::{squares::Square, piece::PieceType};
 
-const VALID_UCI_CHARS: [u8; 8] = [b'a', b'b', b'c', b'd', b'e', b'f', b'g', b'h'];
-const VALID_UCI_NUMS: [u8; 8] = [b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8'];
-const VALID_UCI_PROMOTIONS: [u8; 4] = [b'q', b'r', b'b', b'n'];
+const VALID_UCI_CHARS: [u8; 8] = *b"abcdefgh";
+const VALID_UCI_NUMS: [u8; 8] = *b"12345678";
+const VALID_UCI_PROMOTIONS: [u8; 4] = *b"qrbn";
 
 /// From Stockfish, moves can be packed into a u16 like so:
 /// bit  0- 5: destination square (from 0 to 63)
